@@ -1,6 +1,7 @@
 from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from . import crud, models, schemas
@@ -14,6 +15,15 @@ app = FastAPI(
     title="MySQL 学习 API",
     description="使用 FastAPI 和 MySQL 的学生管理示例",
     version="1.0.0",
+)
+
+# 配置 CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源，生产环境建议设置为具体的域名列表
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有方法 (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # 允许所有请求头
 )
 
 

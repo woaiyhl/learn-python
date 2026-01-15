@@ -1,45 +1,62 @@
-import React from 'react'
+import React from "react";
+import { Table, Button, Popconfirm, Tag } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 
-export default function StudentList({ items, onDelete }) {
-  const list = Array.isArray(items) ? items : []
+export default function StudentList({ items, loading, onDelete }) {
+  const columns = [
+    {
+      title: "ID",
+      dataIndex: "id",
+      key: "id",
+      width: 80,
+    },
+    {
+      title: "姓名",
+      dataIndex: "name",
+      key: "name",
+      render: (text) => <span className="font-medium">{text}</span>,
+    },
+    {
+      title: "邮箱",
+      dataIndex: "email",
+      key: "email",
+    },
+    {
+      title: "年龄",
+      dataIndex: "age",
+      key: "age",
+      render: (age) => (age ? <Tag color="blue">{age} 岁</Tag> : <Tag color="default">-</Tag>),
+    },
+    {
+      title: "操作",
+      key: "action",
+      render: (_, record) => (
+        <Popconfirm
+          title="确认删除"
+          description={`确定要删除学生 "${record.name}" 吗？`}
+          onConfirm={() => onDelete?.(record.id)}
+          okText="删除"
+          cancelText="取消"
+          okButtonProps={{ danger: true }}
+        >
+          <Button type="text" danger icon={<DeleteOutlined />} size="small">
+            删除
+          </Button>
+        </Popconfirm>
+      ),
+    },
+  ];
+
   return (
-    <div className="bg-white rounded-md shadow">
-      <table className="w-full text-left">
-        <thead>
-          <tr className="border-b">
-            <th className="p-3">ID</th>
-            <th className="p-3">姓名</th>
-            <th className="p-3">邮箱</th>
-            <th className="p-3">年龄</th>
-            <th className="p-3">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {list.length === 0 ? (
-            <tr>
-              <td className="p-3 text-gray-500" colSpan={5}>暂无数据</td>
-            </tr>
-          ) : (
-            list.map((s) => (
-              <tr key={s?.id} className="border-b">
-                <td className="p-3">{s?.id ?? ''}</td>
-                <td className="p-3">{s?.name ?? ''}</td>
-                <td className="p-3">{s?.email ?? ''}</td>
-                <td className="p-3">{s?.age ?? ''}</td>
-                <td className="p-3">
-                  <button
-                    className="text-red-600 hover:underline"
-                    onClick={() => onDelete?.(s?.id)}
-                  >
-                    删除
-                  </button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  )
+    <Table
+      rowKey="id"
+      columns={columns}
+      dataSource={items}
+      loading={loading}
+      pagination={{
+        pageSize: 5,
+        showTotal: (total) => `共 ${total} 条数据`,
+      }}
+    />
+  );
 }
-

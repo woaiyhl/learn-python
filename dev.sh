@@ -14,9 +14,14 @@ else
 fi
 
 if command -v docker >/dev/null 2>&1 && command -v docker compose >/dev/null 2>&1; then
-  echo "[dev] 使用 docker compose 启动 MySQL 容器 (服务名: mysql)"
-  (cd "$ROOT_DIR" && docker compose up -d mysql)
-  echo "[dev] MySQL 容器已启动，端口映射: ${MYSQL_PORT:-3306} -> 3306"
+  # 检查 Docker Daemon 是否正在运行
+  if docker info >/dev/null 2>&1; then
+    echo "[dev] 使用 docker compose 启动 MySQL 容器 (服务名: mysql)"
+    (cd "$ROOT_DIR" && docker compose up -d mysql)
+    echo "[dev] MySQL 容器已启动，端口映射: ${MYSQL_PORT:-3306} -> 3306"
+  else
+    echo "[dev] Docker Daemon 未运行，跳过容器启动，将使用本机 MySQL"
+  fi
 else
   echo "[dev] 未检测到 docker compose，将假定本机已有运行中的 MySQL 服务"
 fi
