@@ -1,7 +1,27 @@
 fastapi==0.104.1
+# FastAPI：快速构建 Web API 的异步框架
+# 文档：https://fastapi.tiangolo.com/
+
 uvicorn==0.24.0
+# Uvicorn：ASGI 服务器，用于运行 FastAPI 应用
+# 文档：https://www.uvicorn.org/
+
 sqlalchemy==2.0.23
+# SQLAlchemy：Python 主流 ORM 和数据库工具
+# 文档：https://docs.sqlalchemy.org/
+
 pydantic==2.5.2
+# Pydantic：数据校验与设置管理库，FastAPI 默认使用
+# 文档：https://docs.pydantic.dev/
+
 pymysql==1.1.0
+# PyMySQL：纯 Python 实现的 MySQL 数据库驱动
+# 文档：https://pymysql.readthedocs.io/
+
 email-validator==2.1.0.post1
+# email-validator：邮箱格式校验库，被 Pydantic 的 EmailStr 使用
+# 文档：https://github.com/JoshData/python-email-validator
+
 python-dotenv==1.0.1
+# python-dotenv：从 .env 文件加载环境变量
+# 文档：https://github.com/theskumar/python-dotenv
