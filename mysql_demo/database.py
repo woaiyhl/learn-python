@@ -19,15 +19,38 @@ MYSQL_HOST = os.getenv("MYSQL_HOST", "127.0.0.1")
 MYSQL_PORT = os.getenv("MYSQL_PORT", "3306")
 MYSQL_DB = os.getenv("MYSQL_DB", "learn_mysql")
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+USE_SQLITE = (os.getenv("USE_SQLITE", "") or "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "y",
+    "on",
+}
+
 
 # 使用 SQLAlchemy 的 URL 形式配置 MySQL 连接
 # "mysql+pymysql" 表示使用 PyMySQL 作为 MySQL 数据库驱动
 # PyMySQL 文档：https://pymysql.readthedocs.io/
-SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
+if DATABASE_URL:
+    SQLALCHEMY_DATABASE_URL = DATABASE_URL
+elif USE_SQLITE:
+    sqlite_path = os.getenv("SQLITE_PATH", "./mysql_demo.sqlite3")
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{sqlite_path}"
+else:
+    SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
 
 
 # create_engine 创建数据库引擎对象，负责管理底层连接池
-engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=False, future=True)
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite:"):
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        echo=False,
+        future=True,
+        connect_args={"check_same_thread": False},
+    )
+else:
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=False, future=True)
 
 
 # sessionmaker 是会话工厂，用来创建数据库会话（Session）实例

@@ -1,66 +1,78 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set -m
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "[dev] 项目根目录: $ROOT_DIR"
+BACKEND="${BACKEND:-mysql_demo}"
+FRONTEND="${FRONTEND:-react_demo}"
 
-if [ -f "$ROOT_DIR/mysql_demo/.env" ]; then
-  echo "[dev] 读取 mysql_demo/.env 环境变量"
-  # shellcheck disable=SC2046
-  export $(grep -v '^#' "$ROOT_DIR/mysql_demo/.env" | xargs || true)
-else
-  echo "[dev] 警告: 未找到 mysql_demo/.env, 将使用代码中的默认 MySQL 配置"
+BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
+BACKEND_PORT="${BACKEND_PORT:-8001}"
+FRONTEND_HOST="${FRONTEND_HOST:-127.0.0.1}"
+FRONTEND_PORT="${FRONTEND_PORT:-5173}"
+
+USE_SQLITE="${USE_SQLITE:-1}"
+
+backend_dir="${ROOT_DIR}/${BACKEND}"
+frontend_cwd="${ROOT_DIR}/${FRONTEND}"
+
+if [[ ! -d "${backend_dir}" ]]; then
+  echo "后端目录不存在: ${backend_dir}"
+  exit 1
 fi
 
-if command -v docker >/dev/null 2>&1 && command -v docker compose >/dev/null 2>&1; then
-  # 检查 Docker Daemon 是否正在运行
-  if docker info >/dev/null 2>&1; then
-    echo "[dev] 使用 docker compose 启动 MySQL 容器 (服务名: mysql)"
-    (cd "$ROOT_DIR" && docker compose up -d mysql)
-    echo "[dev] MySQL 容器已启动，端口映射: ${MYSQL_PORT:-3306} -> 3306"
-  else
-    echo "[dev] Docker Daemon 未运行，跳过容器启动，将使用本机 MySQL"
-  fi
-else
-  echo "[dev] 未检测到 docker compose，将假定本机已有运行中的 MySQL 服务"
+if [[ ! -d "${frontend_cwd}" ]]; then
+  echo "前端目录不存在: ${frontend_cwd}"
+  exit 1
 fi
-
-echo "[dev] 启动 FastAPI 后端 (mysql_demo, 端口 8001)"
-(
-  cd "$ROOT_DIR" && \
-  python -m uvicorn mysql_demo.main:app --reload --host 127.0.0.1 --port 8001
-) &
-BACKEND_PID=$!
-
-echo "[dev] 启动 React 前端 (react_demo, 端口 5173)"
-(
-  cd "$ROOT_DIR/react_demo" && \
-  npm run dev
-) &
-FRONTEND_PID=$!
 
 cleanup() {
-  echo "\n[dev] 收到退出信号, 正在停止服务..."
-  if kill -0 "$BACKEND_PID" 2>/dev/null; then
-    echo "[dev] 停止 FastAPI 后端 (PID=$BACKEND_PID)"
-    kill "$BACKEND_PID" || true
+  if [[ -n "${FRONT_PID:-}" ]]; then
+    kill -TERM -- "-${FRONT_PID}" >/dev/null 2>&1 || true
   fi
-  if kill -0 "$FRONTEND_PID" 2>/dev/null; then
-    echo "[dev] 停止 React 前端 (PID=$FRONTEND_PID)"
-    kill "$FRONTEND_PID" || true
-  fi
-  if command -v docker >/dev/null 2>&1 && command -v docker compose >/dev/null 2>&1; then
-    echo "[dev] 你可以使用 'docker compose down' 手动停止 MySQL 容器 (当前脚本不自动关闭)"
+  if [[ -n "${BACK_PID:-}" ]]; then
+    kill -TERM -- "-${BACK_PID}" >/dev/null 2>&1 || true
   fi
 }
+trap cleanup EXIT INT TERM
 
-trap cleanup INT TERM
+echo "启动后端: ${BACKEND} (${BACKEND_HOST}:${BACKEND_PORT})"
+(
+  cd "${ROOT_DIR}"
+  if [[ "${BACKEND}" == "mysql_demo" ]]; then
+    USE_SQLITE="${USE_SQLITE}" python3 -m uvicorn mysql_demo.main:app --reload --host "${BACKEND_HOST}" --port "${BACKEND_PORT}"
+  elif [[ "${BACKEND}" == "advanced_demo" ]]; then
+    python3 -m uvicorn advanced_demo.main:app --reload --host "${BACKEND_HOST}" --port "${BACKEND_PORT}"
+  else
+    echo "不支持的后端: ${BACKEND}"
+    exit 1
+  fi
+) &
+BACK_PID=$!
 
-echo "[dev] 所有服务已启动:"
-echo "      后端: http://127.0.0.1:8001"
-echo "      前端: http://localhost:5173"
-echo "      API 文档: http://127.0.0.1:8001/docs"
+backend_probe_path="/health"
+if [[ "${BACKEND}" == "advanced_demo" ]]; then
+  backend_probe_path="/docs"
+fi
+
+echo "等待后端就绪: http://${BACKEND_HOST}:${BACKEND_PORT}${backend_probe_path}"
+for _ in {1..60}; do
+  if python3 -c "import urllib.request; urllib.request.urlopen('http://${BACKEND_HOST}:${BACKEND_PORT}${backend_probe_path}', timeout=0.5).read()" >/dev/null 2>&1; then
+    echo "后端已就绪"
+    break
+  fi
+  sleep 0.25
+done
+
+echo "启动前端: ${FRONTEND} (${FRONTEND_HOST}:${FRONTEND_PORT})"
+(
+  cd "${frontend_cwd}"
+  npm run dev -- --host "${FRONTEND_HOST}" --port "${FRONTEND_PORT}"
+) &
+FRONT_PID=$!
+
+echo "前端地址: http://${FRONTEND_HOST}:${FRONTEND_PORT}/"
+echo "按 Ctrl+C 退出"
 
 wait
-
